@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D.C. Boundary Stone Locations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Code+Pro:wght@400;500&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --parchment: #f5f0e8;
+    --parchment-dark: #e8e0ce;
+    --ink: #1a1410;
+    --ink-light: #3d332a;
+    --copper: #b8793a;
+    --copper-light: #d4954f;
+    --copper-pale: #f0dfc0;
+    --verdigris: #4a7c6f;
+    --verdigris-light: #6aad9b;
+    --red-seal: #8b2020;
+    --sidebar-width: 340px;
+    --header-height: 64px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Crimson Pro', Georgia, serif;
+    background: var(--ink);
+    color: var(--ink);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    height: var(--header-height);
+    background: var(--ink);
+    border-bottom: 2px solid var(--copper);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1000;
+  }
+
+  .header-emblem {
+    width: 38px; height: 38px;
+    border: 2px solid var(--copper);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    color: var(--copper);
+    flex-shrink: 0;
+    background: rgba(184,121,58,0.08);
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--parchment);
+    letter-spacing: 0.02em;
+    flex: 1;
+  }
+  header h1 span {
+    color: var(--copper);
+  }
+
+  .header-meta {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    color: #8a7a68;
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .layout {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--parchment);
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease, transform 0.3s ease;
+    position: relative;
+    z-index: 500;
+    border-right: 1px solid var(--parchment-dark);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .sidebar.collapsed {
+    width: 0;
+  }
+
+  .sidebar-toggle {
+    position: absolute;
+    left: var(--sidebar-width);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 600;
+    background: var(--ink);
+    border: 2px solid var(--copper);
+    border-left: none;
+    color: var(--copper);
+    width: 22px; height: 52px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 0 6px 6px 0;
+    transition: left 0.3s ease;
+    font-size: 10px;
+  }
+  .sidebar-toggle:hover { background: #2a2018; }
+  .sidebar.collapsed + .sidebar-toggle {
+    left: 0;
+  }
+
+  /* ── SIDEBAR HEADER ── */
+  .sidebar-head {
+    background: var(--ink);
+    padding: 16px 16px 14px;
+    border-bottom: 2px solid var(--copper);
+  }
+
+  .sidebar-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.85rem;
+    color: var(--copper-light);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* ── SEARCH ── */
+  .search-wrapper {
+    position: relative;
+  }
+  .search-input {
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid #4a3c2e;
+    border-radius: 4px;
+    padding: 8px 32px 8px 12px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.95rem;
+    color: var(--parchment);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input::placeholder { color: #6a5a48; }
+  .search-input:focus { border-color: var(--copper); }
+  .search-icon {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: #6a5a48;
+    font-size: 13px;
+    pointer-events: none;
+  }
+  .search-clear {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--copper);
+    font-size: 13px;
+    cursor: pointer;
+    display: none;
+    background: none; border: none;
+    line-height: 1;
+  }
+
+  /* ── FILTER PILLS ── */
+  .filter-row {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    padding: 10px 16px 0;
+    background: var(--ink);
+    padding-bottom: 12px;
+  }
+  .pill {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.62rem;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid currentColor;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+  .pill-all { color: var(--parchment); border-color: #5a4a38; }
+  .pill-all.active { background: #5a4a38; color: var(--parchment); }
+  .pill-nw { color: #7ac; border-color: #7ac; }
+  .pill-nw.active { background: #7ac; color: var(--ink); }
+  .pill-ne { color: #fa8; border-color: #fa8; }
+  .pill-ne.active { background: #fa8; color: var(--ink); }
+  .pill-sw { color: #8d8; border-color: #8d8; }
+  .pill-sw.active { background: #8d8; color: var(--ink); }
+  .pill-se { color: #d8a; border-color: #d8a; }
+  .pill-se.active { background: #d8a; color: var(--ink); }
+  .pill-cardinal { color: var(--copper-light); border-color: var(--copper-light); }
+  .pill-cardinal.active { background: var(--copper-light); color: var(--ink); }
+
+  /* ── STONE COUNT ── */
+  .stone-count {
+    padding: 8px 16px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    color: #7a6a58;
+    background: var(--parchment-dark);
+    border-bottom: 1px solid #d8ccb8;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── STONE LIST ── */
+  .stone-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+  .stone-list::-webkit-scrollbar { width: 5px; }
+  .stone-list::-webkit-scrollbar-track { background: var(--parchment); }
+  .stone-list::-webkit-scrollbar-thumb { background: var(--copper-pale); border-radius: 3px; }
+
+  .stone-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(184,121,58,0.15);
+    transition: background 0.15s;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .stone-item:hover { background: var(--copper-pale); }
+  .stone-item.active { background: rgba(184,121,58,0.18); border-left: 3px solid var(--copper); }
+
+  .stone-badge {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.62rem;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    min-width: 48px;
+    text-align: center;
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+  }
+  .badge-nw { background: rgba(119,170,204,0.2); color: #4488aa; border: 1px solid rgba(119,170,204,0.5); }
+  .badge-ne { background: rgba(255,170,136,0.2); color: #cc6633; border: 1px solid rgba(255,170,136,0.5); }
+  .badge-sw { background: rgba(136,221,136,0.2); color: #338833; border: 1px solid rgba(136,221,136,0.5); }
+  .badge-se { background: rgba(221,136,187,0.2); color: #993377; border: 1px solid rgba(221,136,187,0.5); }
+  .badge-cardinal { background: rgba(184,121,58,0.2); color: var(--copper); border: 1px solid rgba(184,121,58,0.5); }
+
+  .stone-info { flex: 1; min-width: 0; }
+  .stone-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .stone-loc {
+    font-size: 0.78rem;
+    color: #6a5a48;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .no-results {
+    padding: 32px 16px;
+    text-align: center;
+    color: #9a8a78;
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+
+  /* ── MAP ── */
+  #map {
+    flex: 1;
+    background: #2a2218;
+  }
+
+  /* ── POPUP ── */
+  .leaflet-popup-content-wrapper {
+    background: var(--parchment);
+    border-radius: 4px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    border: 1px solid var(--copper);
+    padding: 0;
+    overflow: hidden;
+  }
+  .leaflet-popup-content {
+    margin: 0;
+    width: 260px !important;
+  }
+  .leaflet-popup-tip { background: var(--parchment); }
+  .leaflet-popup-close-button { color: var(--ink) !important; top: 8px !important; right: 10px !important; }
+
+  .popup-head {
+    background: var(--ink);
+    padding: 10px 14px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .popup-badge {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.06em;
+  }
+  .popup-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.9rem;
+    color: var(--parchment);
+    font-weight: 600;
+  }
+  .popup-body { padding: 12px 14px; }
+  .popup-desc {
+    font-size: 0.82rem;
+    color: var(--ink-light);
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .popup-coords {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    color: #8a7a68;
+    margin-bottom: 8px;
+  }
+  .popup-narrative {
+    font-size: 0.78rem;
+    color: var(--red-seal);
+    font-style: italic;
+    line-height: 1.4;
+    padding: 6px 8px;
+    background: rgba(139,32,32,0.07);
+    border-left: 2px solid var(--red-seal);
+    border-radius: 2px;
+    margin-bottom: 8px;
+  }
+  .popup-link {
+    display: inline-block;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.65rem;
+    color: var(--copper);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+  }
+  .popup-link:hover { color: var(--copper-light); text-decoration: underline; }
+
+  /* ── CUSTOM MARKER ── */
+  .stone-marker {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(255,255,255,0.9);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 7px;
+    font-weight: 600;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .stone-marker:hover { transform: scale(1.15); }
+  .stone-marker.active-marker { transform: scale(1.25); border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.4); }
+
+  .marker-nw { background: #4488aa; }
+  .marker-ne { background: #cc6633; }
+  .marker-sw { background: #338833; }
+  .marker-se { background: #993377; }
+  .marker-cardinal { background: var(--copper); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-emblem">⬡</div>
+  <h1>D.C. <span>Boundary Stone</span> Locations</h1>
+  <div class="header-meta">
+    ESTABLISHED 1791–1792<br>
+    ANDREW ELLICOTT &amp; BENJAMIN BANNEKER
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-title">Survey Markers</div>
+      <div class="search-wrapper">
+        <input class="search-input" id="searchInput" type="text" placeholder="Search stone, location…" autocomplete="off">
+        <span class="search-icon" id="searchIcon">⌕</span>
+        <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="pill pill-all active" onclick="setFilter('all', this)">ALL</span>
+      <span class="pill pill-nw" onclick="setFilter('NW', this)">NW</span>
+      <span class="pill pill-ne" onclick="setFilter('NE', this)">NE</span>
+      <span class="pill pill-sw" onclick="setFilter('SW', this)">SW</span>
+      <span class="pill pill-se" onclick="setFilter('SE', this)">SE</span>
+      <span class="pill pill-cardinal" onclick="setFilter('CARDINAL', this)">CARDINAL</span>
+    </div>
+    <div class="stone-count" id="stoneCount">39 stones · full survey</div>
+    <div class="stone-list" id="stoneList"></div>
+  </aside>
+
+  <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">
+    <span id="toggleArrow">◀</span>
+  </button>
+
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const STONES = [
+  {id:1,num:"NORTH",lat:38.9959643,lng:-77.040987881,loc:"150 feet west of the exit from Chevy Chase Crest Apts and 20 feet south of the 1880 block of East-West Highway (MD410) in Silver Spring, MD.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NORTH_2.jpg"},
+  {id:2,num:"NW9",lat:38.98570635,lng:-77.054131161,loc:"5 feet East of a driveway at 2701 Daniel Pl., 165 ft. NE from the midline of the intersection of Oregon Ave. and Daniel Pl., NW.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW9_2.jpg"},
+  {id:3,num:"NE1",lat:38.9856281,lng:-77.027745661,loc:"A bronze plaque exists on the sidewalk in front of convenience store at 7847 Eastern Ave in Silver Spring, MD.",narrative:"SURVEYED CENTER OF THE PLAQUE",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE1_3.jpg"},
+  {id:4,num:"NW8",lat:38.9754501,lng:-77.06726924,loc:"Center of a front lawn at 6422 Western Ave., NW.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW8_2.jpg"},
+  {id:5,num:"NE2",lat:38.975359069,lng:-77.014596607,loc:"South corner of a front lawn at 6890 Maple Ave, NE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE2_2.jpg"},
+  {id:6,num:"NE3",lat:38.965280405,lng:-77.001693119,loc:"About 140 feet northwest of intersection of Chillum Rd and Eastern Ave, NE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE3_2.jpg"},
+  {id:7,num:"NW7",lat:38.965190164,lng:-77.080405785,loc:"Under a tree on the South corner of the front lawn of 5600 Western Ave., NW.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW7_2.jpg"},
+  {id:8,num:"NW6",lat:38.9549163990001,lng:-77.0935499299999,loc:"Just West of a bus stop opposite Fesseden St., in between Park Place and Western Avenue, NW.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW6_2.jpg"},
+  {id:9,num:"NE4",lat:38.9547406020001,lng:-76.988209554,loc:"About 75 feet northwest of the intersection of Eastern Ave and Sargent Rd, NE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE4_2.jpg"},
+  {id:10,num:"NW5",lat:38.94464687,lng:-77.1066838579999,loc:"About 300 ft. SE of a concrete culvert, 600 feet West of the Daleclaria Parkway, NW.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW5_1.jpg"},
+  {id:11,num:"NE5",lat:38.944421644,lng:-76.975011131,loc:"Center of a front lawn at 4609 Eastern Ave., NE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE5_2.jpg"},
+  {id:12,num:"NW4",lat:38.9376137840001,lng:-77.115673941,loc:"The back yard of 5609 Daleclaria Place, NW.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW4_2.jpg"},
+  {id:13,num:"NE6",lat:38.933722721,lng:-76.961332236,loc:"South corner of a front lawn at 3601 Eastern Ave., NE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE6_2.jpg"},
+  {id:14,num:"NW3",lat:38.9246409940001,lng:-77.132238746,loc:"Center of a back yard at 4013 Tazwell St., Arl. VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW3_2.jpg"},
+  {id:15,num:"NE7",lat:38.9237959910001,lng:-76.94865176,loc:"About 100 ft. SE of the South corner of a series of raised monuments on the 18th block of Fort Lincoln Cemetery, Cottage City, MD.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE7_1.jpg"},
+  {id:16,num:"NW2",lat:38.9138889170001,lng:-77.145989711,loc:"On the NE corner of 5298 Old Dominion Drive, Arl. VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW2_1.jpg"},
+  {id:17,num:"NE8",lat:38.91349059,lng:-76.9354855719999,loc:"About 500 ft. NE of intersection of Kenilworth and Eastern Aves, behind a D.C. Public Housing Project, NE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE8_2.jpg"},
+  {id:18,num:"NW1",lat:38.9035693180001,lng:-77.159146686,loc:"N corner of a back yard at 3607 Powhatan St., Arl., VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NW1_2.jpg"},
+  {id:19,num:"NE9",lat:38.9031766950001,lng:-76.9223218129999,loc:"West corner of the front lawn at 919 Eastern Ave., NE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/NE9_2.jpg"},
+  {id:20,num:"WEST",lat:38.893252907,lng:-77.172303475,loc:"Andrew Ellicott Park, 2848 N. Arizona Street, Arl., VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/WEST_2.jpg"},
+  {id:21,num:"EAST",lat:38.892868293,lng:-76.9091677879999,loc:"About 100 ft. East of the intersection of Eastern and Southern Aves.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/EAST_2.jpg"},
+  {id:22,num:"SW9",lat:38.882950695,lng:-77.159092387,loc:"A park along Van Buren Street, N of Columbia St., F.C., VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW9_2.jpg"},
+  {id:23,num:"SE1",lat:38.8826478340001,lng:-76.92229572,loc:"Opposite the end of D St., along Southern Ave., SE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SE1_2.jpg"},
+  {id:24,num:"SW8",lat:38.8726789720001,lng:-77.145947604,loc:"About 120 ft. SE of a water tower in an apartment complex parking lot on the SE corner of John Marshall Dr. and Wilson Blvd., Falls Church, VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW8_2.jpg"},
+  {id:25,num:"SE2",lat:38.8724182380001,lng:-76.935426594,loc:"N corner of a front lawn at 4345 Southern Ave., SE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SE2_2.jpg"},
+  {id:26,num:"SW7",lat:38.8623798240001,lng:-77.1327282629999,loc:"Along the SW fence on the grounds of Carlin Springs Elementary School, Arl., VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW7_1.jpg"},
+  {id:27,num:"SE3",lat:38.862168382,lng:-76.948573097,loc:"Opposite 3908 Southern Ave., surrounded by ivy.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SE3_2.jpg"},
+  {id:28,num:"SW6",lat:38.8518731120001,lng:-77.1192659019999,loc:"In the median strip of S. Jefferson Street between Columbia and Leesburg Pikes, Fairfax Co./Arlington, VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW6_2.jpg"},
+  {id:29,num:"SW5",lat:38.842088953,lng:-77.1067423979999,loc:"About 100 ft. NE of the intersection of King St. and Walter Reed Dr., on The N side of Walter Reed Dr., An., VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW5_1.jpg"},
+  {id:30,num:"SE5",lat:38.8416903020001,lng:-76.974841694,loc:"Opposite the NE end of Valley Terrace, along Southern Ave., Next to a parking lot for the Southern Ave. Metro stop, SE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SE5_2.jpg"},
+  {id:31,num:"SW4",lat:38.83155076,lng:-77.093189235,loc:"Just off the sidewalk on King St., about 150 ft. NW of Wakefield St., Alex., VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW4_1.jpg"},
+  {id:32,num:"SE6",lat:38.83144495,lng:-76.987975577,loc:"About 20 ft. West of the entrance to the Tribles Co., 901 Southern Ave., SE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SE6_2.jpg"},
+  {id:33,num:"SE7",lat:38.821204283,lng:-77.001098725,loc:"About 25 ft. East of the intersection of Indian Head Hwy. and Southern Ave., SE.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SE7_2.jpg"},
+  {id:34,num:"SW3",lat:38.8206604110001,lng:-77.079322501,loc:"North end of a parking lot of the First Baptist Church of Alexandria at 2932 King St., Alex., VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW3_2.jpg"},
+  {id:35,num:"SE8",lat:38.8109274280001,lng:-77.0142527359999,loc:"SE corner of the D.C. Village Impound Lot, SW.",narrative:"STONE UNDER 4' OF WATER, COORDINATES APPROX.",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SE8_1.jpg"},
+  {id:36,num:"SW2",lat:38.807600193,lng:-77.0626402249999,loc:"On the sidewalk just West of 7 Russell Rd., Alex. VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW2_2.jpg"},
+  {id:37,num:"SE9",lat:38.8035144200001,lng:-77.023739489,loc:"About 1000 ft. SW of the South end of Oxon Cove Bridge along Interstate 295, about 120 ft. East of the Potomac river bed.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SE9_1.jpg"},
+  {id:38,num:"SW1",lat:38.801251316,lng:-77.054395321,loc:"On the NW corner of a lot at 1220 Wilkes Street, Alex. VA.",narrative:"",pic:"http://octo.dc.gov/sites/default/files/dc/sites/octo/featured_content/images/SW1_1.jpg"},
+  {id:39,num:"SOUTH",lat:38.7903469140001,lng:-77.0405883189999,loc:"Currently in seawall on the side of the Joint Point Lighthouse on Jones Point Park, Alexandria VA.",narrative:"Stone wrapped in burlap & packed in sand. Approximate coordinates (±0.4') obtained from AMT surveyor.",pic:null}
+];
+
+function getSection(num) {
+  if (['NORTH','SOUTH','EAST','WEST'].includes(num)) return 'CARDINAL';
+  if (num.startsWith('NW')) return 'NW';
+  if (num.startsWith('NE')) return 'NE';
+  if (num.startsWith('SW')) return 'SW';
+  if (num.startsWith('SE')) return 'SE';
+  return 'CARDINAL';
+}
+
+function getBadgeClass(section) {
+  return { NW:'nw', NE:'ne', SW:'sw', SE:'se', CARDINAL:'cardinal' }[section] || 'cardinal';
+}
+function getMarkerClass(section) {
+  return { NW:'marker-nw', NE:'marker-ne', SW:'marker-sw', SE:'marker-se', CARDINAL:'marker-cardinal' }[section] || 'marker-cardinal';
+}
+
+// ── MAP INIT ──
+const map = L.map('map', { zoomControl: false }).setView([38.893, -77.04], 11);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+  maxZoom: 19
+}).addTo(map);
+
+// ── MARKERS ──
+const markers = {};
+let activeId = null;
+let currentFilter = 'all';
+let currentSearch = '';
+
+STONES.forEach(s => {
+  const section = getSection(s.num);
+  const mc = getMarkerClass(section);
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="stone-marker ${mc}" id="mkr-${s.id}">${s.num}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -16]
+  });
+
+  const badgeCls = getBadgeClass(section);
+  const popupHtml = `
+    <div class="popup-head">
+      <span class="popup-badge badge-${badgeCls}">${s.num}</span>
+      <span class="popup-title">Boundary Stone</span>
+    </div>
+    <div class="popup-body">
+      <div class="popup-desc">${s.loc}</div>
+      ${s.narrative ? `<div class="popup-narrative">${s.narrative}</div>` : ''}
+      <div class="popup-coords">${s.lat.toFixed(6)}°N, ${Math.abs(s.lng).toFixed(6)}°W</div>
+      ${s.pic ? `<a class="popup-link" href="${s.pic}" target="_blank">▸ View photograph</a>` : ''}
+    </div>`;
+
+  const marker = L.marker([s.lat, s.lng], { icon })
+    .addTo(map)
+    .bindPopup(popupHtml, { maxWidth: 260, minWidth: 260 });
+
+  marker.on('click', () => selectStone(s.id, false));
+  marker.on('popupclose', () => {
+    if (activeId === s.id) {
+      deselect();
+    }
+  });
+  markers[s.id] = marker;
+});
+
+// ── SIDEBAR STATE ──
+let sidebarOpen = true;
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+  document.getElementById('toggleArrow').textContent = sidebarOpen ? '◀' : '▶';
+  document.getElementById('sidebarToggle').style.left = sidebarOpen ? 'var(--sidebar-width)' : '0';
+  setTimeout(() => map.invalidateSize(), 320);
+}
+
+// ── FILTER ──
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+// ── SEARCH ──
+document.getElementById('searchInput').addEventListener('input', function() {
+  currentSearch = this.value.trim().toLowerCase();
+  document.getElementById('searchIcon').style.display = currentSearch ? 'none' : '';
+  document.getElementById('searchClear').style.display = currentSearch ? '' : 'none';
+  renderList();
+});
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  currentSearch = '';
+  document.getElementById('searchIcon').style.display = '';
+  document.getElementById('searchClear').style.display = 'none';
+  renderList();
+}
+
+// ── RENDER LIST ──
+function renderList() {
+  const list = document.getElementById('stoneList');
+  const count = document.getElementById('stoneCount');
+  list.innerHTML = '';
+
+  const visible = STONES.filter(s => {
+    const sec = getSection(s.num);
+    const matchFilter = currentFilter === 'all'
+      || (currentFilter === 'CARDINAL' && sec === 'CARDINAL')
+      || s.num.startsWith(currentFilter);
+    const q = currentSearch;
+    const matchSearch = !q || s.num.toLowerCase().includes(q) || s.loc.toLowerCase().includes(q);
+    return matchFilter && matchSearch;
+  });
+
+  if (visible.length === 0) {
+    list.innerHTML = '<div class="no-results">No stones match your search.</div>';
+    count.textContent = '0 stones found';
+    // hide all markers
+    STONES.forEach(s => markers[s.id].setOpacity(0.1));
+    return;
+  }
+
+  // Update marker visibility
+  STONES.forEach(s => {
+    const shown = visible.some(v => v.id === s.id);
+    markers[s.id].setOpacity(shown ? 1 : 0.15);
+  });
+
+  const filterLabel = currentFilter === 'all' ? 'full survey' : currentFilter + ' quadrant';
+  count.textContent = `${visible.length} stone${visible.length !== 1 ? 's' : ''} · ${filterLabel}`;
+
+  visible.forEach(s => {
+    const section = getSection(s.num);
+    const badgeCls = getBadgeClass(section);
+    const div = document.createElement('div');
+    div.className = 'stone-item' + (activeId === s.id ? ' active' : '');
+    div.id = `item-${s.id}`;
+    div.innerHTML = `
+      <span class="stone-badge badge-${badgeCls}">${s.num}</span>
+      <div class="stone-info">
+        <div class="stone-name">Boundary Stone ${s.num}</div>
+        <div class="stone-loc" title="${s.loc}">${s.loc}</div>
+      </div>`;
+    div.addEventListener('click', () => selectStone(s.id, true));
+    list.appendChild(div);
+  });
+}
+
+// ── SELECT ──
+function selectStone(id, panToMarker) {
+  if (activeId !== null) {
+    const prev = document.getElementById(`item-${activeId}`);
+    if (prev) prev.classList.remove('active');
+    const prevEl = document.querySelector(`#mkr-${activeId}`);
+    if (prevEl) prevEl.classList.remove('active-marker');
+  }
+  activeId = id;
+  const item = document.getElementById(`item-${id}`);
+  if (item) {
+    item.classList.add('active');
+    item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  const el = document.querySelector(`#mkr-${id}`);
+  if (el) el.classList.add('active-marker');
+
+  const stone = STONES.find(s => s.id === id);
+  if (panToMarker) {
+    map.flyTo([stone.lat, stone.lng], 15, { duration: 0.8 });
+  }
+  markers[id].openPopup();
+}
+
+function deselect() {
+  if (activeId !== null) {
+    const prev = document.getElementById(`item-${activeId}`);
+    if (prev) prev.classList.remove('active');
+    const prevEl = document.querySelector(`#mkr-${activeId}`);
+    if (prevEl) prevEl.classList.remove('active-marker');
+    activeId = null;
+  }
+}
+
+// ── INIT ──
+renderList();
+
+// Draw a faint boundary polygon connecting all stones in order
+const boundaryCoords = [
+  [38.9959643,-77.040987881], // NORTH
+  [38.98570635,-77.054131161], // NW9
+  [38.9754501,-77.06726924], // NW8
+  [38.965190164,-77.080405785], // NW7
+  [38.9549163990001,-77.0935499299999], // NW6
+  [38.94464687,-77.1066838579999], // NW5
+  [38.9376137840001,-77.115673941], // NW4
+  [38.9246409940001,-77.132238746], // NW3
+  [38.9138889170001,-77.145989711], // NW2
+  [38.9035693180001,-77.159146686], // NW1
+  [38.893252907,-77.172303475], // WEST
+  [38.882950695,-77.159092387], // SW9
+  [38.8726789720001,-77.145947604], // SW8
+  [38.8623798240001,-77.1327282629999], // SW7
+  [38.8518731120001,-77.1192659019999], // SW6
+  [38.842088953,-77.1067423979999], // SW5
+  [38.83155076,-77.093189235], // SW4
+  [38.8206604110001,-77.079322501], // SW3
+  [38.807600193,-77.0626402249999], // SW2
+  [38.801251316,-77.054395321], // SW1
+  [38.7903469140001,-77.0405883189999], // SOUTH
+  [38.8035144200001,-77.023739489], // SE9
+  [38.8109274280001,-77.0142527359999], // SE8
+  [38.821204283,-77.001098725], // SE7
+  [38.83144495,-76.987975577], // SE6
+  [38.83155076,-77.093189235], // SW4 (for SE side)
+  [38.8416903020001,-76.974841694], // SE5
+  [38.8724182380001,-76.935426594], // SE2
+  [38.862168382,-76.948573097], // SE3
+  [38.8826478340001,-76.92229572], // SE1
+  [38.892868293,-76.9091677879999], // EAST
+  [38.9031766950001,-76.9223218129999], // NE9
+  [38.91349059,-76.9354855719999], // NE8
+  [38.9237959910001,-76.94865176], // NE7
+  [38.933722721,-76.961332236], // NE6
+  [38.944421644,-76.975011131], // NE5
+  [38.9547406020001,-76.988209554], // NE4
+  [38.965280405,-77.001693119], // NE3
+  [38.975359069,-77.014596607], // NE2
+  [38.9856281,-77.027745661], // NE1
+  [38.98570635,-77.054131161], // NW9
+  [38.9959643,-77.040987881], // NORTH close
+];
+
+L.polyline(boundaryCoords, {
+  color: '#b8793a',
+  weight: 1.5,
+  opacity: 0.35,
+  dashArray: '6, 6'
+}).addTo(map);
+</script>
+</body>
+</html>
+
